@@ -9,15 +9,26 @@
         fclose($sock);
         return true;
     }
-
-    // make sure everything required is actually set.
+    
     if (!isset( $_REQUEST['port'] )) exit();
-    if (!isset( $_REQUEST['name'] )) exit();
-    if (!isset( $_REQUEST['state'] )) exit();
-    if (!isset( $_REQUEST['map'] )) exit();
-    if (!isset( $_REQUEST['mods'] )) exit();
-    if (!isset( $_REQUEST['players'] )) exit();
-
+    
+    
+    if ( isset( $_REQUEST['yaml'] ) ) {
+        $yaml = $_REQUEST['yaml'];
+    } else {
+        // Deal with legacy
+        if (!isset( $_REQUEST['name'] )) exit();
+        if (!isset( $_REQUEST['state'] )) exit();
+        if (!isset( $_REQUEST['map'] )) exit();
+        if (!isset( $_REQUEST['mods'] )) exit();
+        if (!isset( $_REQUEST['players'] )) exit();
+        $yaml = "\tName: " . $_REQUEST['name'] . "\n"
+                ."\tState: " . $_REQUEST['state'] . "\n"
+                ."\tPlayers: " . $_REQUEST['players'] . "\n"
+                ."\tMap: " . $_REQUEST['map'] . "\n"
+                ."\tMods: " . $_REQUEST['mods'] . "\n";
+    }
+    
     header( 'Content-type: text/plain' );
     try 
     {
@@ -27,23 +38,21 @@
         $addr = $ip . ':' . $port;
         $name = urldecode( $_REQUEST['name'] );
         
-		if (isset( $_REQUEST['new']))
-		{
+        if (isset( $_REQUEST['new']))
+        {
             $connectable = check_port($ip, $port);
+            $portOpen = 'yes';
             if (!$connectable)
-                $name = '[down]' . $name;
-		}
+                $portOpen = 'no';
+        }
         
         $insert = $db->prepare('INSERT OR REPLACE INTO servers 
-            (name, address, players, state, ts, map, mods) 
-            VALUES (:name, :addr, :players, :state, :time, :map, :mods)');
-        $insert->bindValue(':name', $name, PDO::PARAM_STR);
+            (address, portOpen, yaml, ts) 
+            VALUES (:addr, :portOpen, :yaml, :time)');
         $insert->bindValue(':addr', $addr, PDO::PARAM_STR);
-        $insert->bindValue(':players', $_REQUEST['players'], PDO::PARAM_INT);
-        $insert->bindValue(':state', $_REQUEST['state'], PDO::PARAM_INT);
+        $insert->bindValue(':portOpen', $portOpen, PDO::PARAM_STR);
+        $insert->bindValue(':yaml', $yaml, PDO::PARAM_STR);
         $insert->bindValue(':time', time(), PDO::PARAM_INT);
-        $insert->bindValue(':map', $_REQUEST['map'], PDO::PARAM_STR);
-        $insert->bindValue(':mods', $_REQUEST['mods'], PDO::PARAM_STR);
         
         $insert->execute();
 
