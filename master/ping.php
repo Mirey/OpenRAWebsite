@@ -15,6 +15,9 @@
     
     if ( isset( $_REQUEST['yaml'] ) ) {
         $yaml = $_REQUEST['yaml'];
+		$yaml = str_replace("\n", "\n\t", $yaml);
+		if($yaml[0] != "\t")
+			$yaml = "\t" . $yaml;
     } else {
         // Deal with legacy
         if (!isset( $_REQUEST['name'] )) exit();
@@ -44,15 +47,19 @@
             $portOpen = 'yes';
             if (!$connectable)
                 $portOpen = 'no';
-        }
-        
-        $insert = $db->prepare('INSERT OR REPLACE INTO servers 
-            (address, portOpen, yaml, ts) 
-            VALUES (:addr, :portOpen, :yaml, :time)');
+        } else { 
+			$select = $db->prepare('SELECT portOpen FROM servers WHERE address = :addr');
+			$select->bindValue(':addr', $addr, PDO::PARAM_STR);
+			$select->execute();
+			$portOpen = $select->fetchColumn();
+		}
+		$insert = $db->prepare('INSERT OR REPLACE INTO servers 
+							(address, portOpen, yaml, ts) 
+							VALUES (:addr, :portOpen, :yaml, :time)');
         $insert->bindValue(':addr', $addr, PDO::PARAM_STR);
-        $insert->bindValue(':portOpen', $portOpen, PDO::PARAM_STR);
         $insert->bindValue(':yaml', $yaml, PDO::PARAM_STR);
         $insert->bindValue(':time', time(), PDO::PARAM_INT);
+		$insert->bindValue(':portOpen', $portOpen, PDO::PARAM_STR);
         
         $insert->execute();
 
